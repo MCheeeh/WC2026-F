@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coupe du Monde 2026 - Phase Finale</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-futbol"></i> Coupe du Monde 2026 - Phase Finale</h1>
+            <p class="subtitle">Suivez en direct les matchs et résultats officiels</p>
+            <div class="date-info">
+                <span id="current-date">Chargement...</span>
+                <span id="last-update">Dernière mise à jour: --:--</span>
+                <span id="data-source">Source: Football-Data.org</span>
+            </div>
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i> Chargement des données...
+            </div>
+            <div class="error-message" id="error-message" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i> Impossible de récupérer les données. Affichage des données par défaut.
+            </div>
+        </header>
+
+        <main>
+            <!-- Section Calendrier -->
+            <section class="calendar-section">
+                <h2><i class="fas fa-calendar-alt"></i> Calendrier des matchs</h2>
+                <div class="calendar">
+                    <div class="calendar-header">
+                        <button id="prev-day"><i class="fas fa-chevron-left"></i></button>
+                        <h3 id="day-title">-- -- 2026</h3>
+                        <button id="next-day"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="matches-list" id="matches-list">
+                        <!-- Les matchs seront injectés ici par JavaScript -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section Bracket -->
+            <section class="bracket-section">
+                <h2><i class="fas fa-trophy"></i> Tableau final</h2>
+                <div class="bracket-container">
+                    <div class="bracket" id="bracket">
+                        <!-- Le tableau sera généré ici -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>© 2026 Coupe du Monde - Données fournies par <a href="https://www.football-data.org" target="_blank">Football-Data.org</a></p>
+            <p>Projet open source - <a href="https://github.com" target="_blank">Voir sur GitHub</a></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
