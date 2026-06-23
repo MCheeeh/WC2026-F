@@ -1,6 +1,12 @@
-// ⚠️ CONFIGURATION : Remplacez par votre clé API gratuite
-const API_KEY = e8f5821229bc8e9810bdec7c401274f1; // Obtenez-la sur https://www.api-football.com
-const COMPETITION_ID = 1; // ID de la Coupe du Monde (1 = FIFA World Cup)
+/**
+ * ⚠️ CONFIGURATION
+ * TheSportsDB ne nécessite PAS de clé API pour les requêtes basiques
+ * Mais pour plus de requêtes, vous pouvez obtenir une clé gratuite sur :
+ * https://www.thesportsdb.com/api.php
+ */
+
+// ⚠️ Si vous avez une clé API TheSportsDB, décommentez et remplacez :
+// const API_KEY = 'VOTRE_CLE_API_THE_SPORTS_DB';
 
 /**
  * État de l'application
@@ -55,13 +61,8 @@ const TEAMS = [
  */
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Vérifier si l'API est disponible
-        if (!API_KEY || API_KEY === 'YOUR_API_FOOTBALL_KEY') {
-            throw new Error('Clé API manquante. Veuillez obtenir une clé sur https://www.api-football.com');
-        }
-
-        // Charger les données depuis l'API
-        await loadDataFromAPI();
+        // Charger les données depuis TheSportsDB
+        await loadDataFromTheSportsDB();
 
         // Mettre à jour l'interface
         updateUI();
@@ -89,67 +90,80 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Charger les données depuis l'API-FOOTBALL
+ * Charger les données depuis TheSportsDB
  */
-async function loadDataFromAPI() {
+async function loadDataFromTheSportsDB() {
     state.isLoading = true;
     document.querySelector('.loading').style.display = 'block';
 
     try {
-        // Récupérer les matchs de la Coupe du Monde 2026
-        const response = await fetch(
-            `https://v3.football.api-sports.io/fixtures?competition=${COMPETITION_ID}&season=2026&phase=knockout`,
-            {
-                headers: {
-                    'x-apisports-key': API_KEY
-                }
-            }
-        );
+        // Étape 1 : Trouver l'ID de la compétition "FIFA World Cup 2026"
+        const competitions = await fetchCompetitions();
 
-        if (!response.ok) {
-            throw new Error(`Erreur API: ${response.status} ${response.statusText}`);
+        if (!competitions || competitions.length === 0) {
+            throw new Error('Aucune compétition trouvée pour la Coupe du Monde 2026');
         }
 
-        const data = await response.json();
+        // On prend la première compétition qui contient "World Cup" et "2026"
+        const worldCup2026 = competitions.find(comp =>
+            (comp.strLeague.includes('World Cup') || comp.strLeague.includes('Coupe du Monde')) &&
+            comp.strLeague.includes('2026')
+        );
 
-        if (!data.response || data.response.length === 0) {
+        if (!worldCup2026) {
+            throw new Error('Compétition "Coupe du Monde 2026" non trouvée dans TheSportsDB');
+        }
+
+        console.log('Compétition trouvée:', worldCup2026);
+
+        // Étape 2 : Récupérer les matchs de cette compétition
+        const matches = await fetchMatchesByCompetition(worldCup2026.idLeague);
+
+        if (!matches || matches.length === 0) {
             throw new Error('Aucun match trouvé pour la Coupe du Monde 2026');
         }
 
+        console.log('Matchs récupérés:', matches.length);
+
         // Convertir les données en format compatible
-        state.matches = data.response.map(match => {
-            const homeTeam = match.teams.home;
-            const awayTeam = match.teams.away;
-            const fixture = match.fixture;
-            const goals = match.goals;
+        state.matches = matches.map(match => {
+            // Extraire les équipes
+            const homeTeamCode = getTeamCodeFromName(match.strHomeTeam);
+            const awayTeamCode = getTeamCodeFromName(match.strAwayTeam);
+
+            // Extraire les scores
+            const homeScore = match.intHomeScore || 0;
+            const awayScore = match.intAwayScore || 0;
+
+            // Déterminer le statut
+            let status = 'scheduled';
+            if (match.strStatus === 'FT') status = 'played';
+            else if (match.strStatus === 'LIVE') status = 'live';
 
             return {
-                id: fixture.id.toString(),
-                date: new Date(fixture.date),
-                dateObj: new Date(fixture.date),
-                displayTime: new Date(fixture.date).toLocaleTimeString('fr-FR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                }),
-                venue: fixture.venue.name || 'Inconnu',
-                teams: [homeTeam.short, awayTeam.short],
+                id: `WC2026-${match.idEvent}`,
+                date: new Date(match.dateEvent + ' ' + match.strTime),
+                dateObj: new Date(match.dateEvent + ' ' + match.strTime),
+                displayTime: match.strTime || '00:00',
+                venue: match.strVenue || 'Inconnu',
+                teams: [homeTeamCode, awayTeamCode],
                 score: {
-                    home: goals.home || 0,
-                    away: goals.away || 0
+                    home: homeScore,
+                    away: awayScore
                 },
-                winner: goals.home > goals.away ? homeTeam.short :
-                       goals.away > goals.home ? awayTeam.short : null,
-                status: match.fixture.status.short === 'FT' ? 'played' :
-                       match.fixture.status.short === 'LIVE' ? 'live' : 'scheduled'
+                winner: homeScore > awayScore ? homeTeamCode :
+                       awayScore > homeScore ? awayTeamCode : null,
+                status: status
             };
         });
+
+        console.log('Matchs traités:', state.matches.length);
 
         // Générer les données du bracket
         generateBracketData();
 
         // Mettre à jour le statut de l'API
-        document.getElementById('api-status').textContent = 'API: Connectée ✅';
+        document.getElementById('api-status').textContent = 'API: TheSportsDB ✅';
 
     } catch (error) {
         console.error('Erreur lors de la récupération des données:', error);
@@ -157,6 +171,44 @@ async function loadDataFromAPI() {
     } finally {
         state.isLoading = false;
         document.querySelector('.loading').style.display = 'none';
+    }
+}
+
+/**
+ * Récupérer la liste des compétitions
+ */
+async function fetchCompetitions() {
+    try {
+        // TheSportsDB endpoint pour les compétitions de football
+        const url = 'https://www.thesportsdb.com/api/v1/json/3/all_leagues.php';
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
+
+        const data = await response.json();
+        return data.leagues || [];
+    } catch (error) {
+        console.error('Erreur fetchCompetitions:', error);
+        return [];
+    }
+}
+
+/**
+ * Récupérer les matchs d'une compétition
+ */
+async function fetchMatchesByCompetition(leagueId) {
+    try {
+        // TheSportsDB endpoint pour les événements (matchs) d'une compétition
+        const url = `https://www.thesportsdb.com/api/v1/json/3/events.php?league_id=${leagueId}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Erreur API: ${response.status}`);
+
+        const data = await response.json();
+        return data.events || [];
+    } catch (error) {
+        console.error('Erreur fetchMatchesByCompetition:', error);
+        return [];
     }
 }
 
@@ -169,7 +221,7 @@ function loadDefaultData() {
     // Données par défaut basées sur les pronostics courants
     state.matches = [
         {
-            id: 'R16-1',
+            id: 'WC2026-R16-1',
             date: new Date('2026-07-02T18:00:00Z'),
             dateObj: new Date('2026-07-02T18:00:00Z'),
             displayTime: '20:00',
@@ -180,7 +232,7 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-2',
+            id: 'WC2026-R16-2',
             date: new Date('2026-07-02T21:00:00Z'),
             dateObj: new Date('2026-07-02T21:00:00Z'),
             displayTime: '23:00',
@@ -191,7 +243,7 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-3',
+            id: 'WC2026-R16-3',
             date: new Date('2026-07-03T18:00:00Z'),
             dateObj: new Date('2026-07-03T18:00:00Z'),
             displayTime: '20:00',
@@ -202,7 +254,7 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-4',
+            id: 'WC2026-R16-4',
             date: new Date('2026-07-03T21:00:00Z'),
             dateObj: new Date('2026-07-03T21:00:00Z'),
             displayTime: '23:00',
@@ -213,7 +265,7 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-5',
+            id: 'WC2026-R16-5',
             date: new Date('2026-07-04T18:00:00Z'),
             dateObj: new Date('2026-07-04T18:00:00Z'),
             displayTime: '20:00',
@@ -224,18 +276,18 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-6',
+            id: 'WC2026-R16-6',
             date: new Date('2026-07-04T21:00:00Z'),
             dateObj: new Date('2026-07-04T21:00:00Z'),
             displayTime: '23:00',
             venue: 'Arrowhead Stadium, Kansas City',
             teams: ['NED', 'BEL'],
             score: { home: 2, away: 2 },
-            winner: null, // Match nul, prolongations ou tirs au but
+            winner: null,
             status: 'played'
         },
         {
-            id: 'R16-7',
+            id: 'WC2026-R16-7',
             date: new Date('2026-07-05T18:00:00Z'),
             dateObj: new Date('2026-07-05T18:00:00Z'),
             displayTime: '20:00',
@@ -246,7 +298,7 @@ function loadDefaultData() {
             status: 'played'
         },
         {
-            id: 'R16-8',
+            id: 'WC2026-R16-8',
             date: new Date('2026-07-05T21:00:00Z'),
             dateObj: new Date('2026-07-05T21:00:00Z'),
             displayTime: '23:00',
@@ -267,13 +319,13 @@ function loadDefaultData() {
 function generateBracketData() {
     // Round of 16
     state.bracketData.roundOf16 = state.matches
-        .filter(m => m.id.startsWith('R16-'))
+        .filter(m => m.id.includes('-R16-'))
         .sort((a, b) => a.date - b.date);
 
-    // Quarter Finals (basé sur les gagnants du Round of 16)
+    // Quarter Finals
     state.bracketData.quarterFinals = [
         {
-            id: 'QF-1',
+            id: 'WC2026-QF-1',
             teams: [
                 state.bracketData.roundOf16[0].winner || state.bracketData.roundOf16[0].teams[0],
                 state.bracketData.roundOf16[1].winner || state.bracketData.roundOf16[1].teams[0]
@@ -282,7 +334,7 @@ function generateBracketData() {
             status: 'scheduled'
         },
         {
-            id: 'QF-2',
+            id: 'WC2026-QF-2',
             teams: [
                 state.bracketData.roundOf16[2].winner || state.bracketData.roundOf16[2].teams[0],
                 state.bracketData.roundOf16[3].winner || state.bracketData.roundOf16[3].teams[0]
@@ -291,7 +343,7 @@ function generateBracketData() {
             status: 'scheduled'
         },
         {
-            id: 'QF-3',
+            id: 'WC2026-QF-3',
             teams: [
                 state.bracketData.roundOf16[4].winner || state.bracketData.roundOf16[4].teams[0],
                 state.bracketData.roundOf16[5].winner || state.bracketData.roundOf16[5].teams[0]
@@ -300,7 +352,7 @@ function generateBracketData() {
             status: 'scheduled'
         },
         {
-            id: 'QF-4',
+            id: 'WC2026-QF-4',
             teams: [
                 state.bracketData.roundOf16[6].winner || state.bracketData.roundOf16[6].teams[0],
                 state.bracketData.roundOf16[7].winner || state.bracketData.roundOf16[7].teams[0]
@@ -313,7 +365,7 @@ function generateBracketData() {
     // Semi Finals
     state.bracketData.semiFinals = [
         {
-            id: 'SF-1',
+            id: 'WC2026-SF-1',
             teams: [
                 state.bracketData.quarterFinals[0].winner || '?',
                 state.bracketData.quarterFinals[1].winner || '?'
@@ -322,7 +374,7 @@ function generateBracketData() {
             status: 'scheduled'
         },
         {
-            id: 'SF-2',
+            id: 'WC2026-SF-2',
             teams: [
                 state.bracketData.quarterFinals[2].winner || '?',
                 state.bracketData.quarterFinals[3].winner || '?'
@@ -335,7 +387,7 @@ function generateBracketData() {
     // Third Place
     state.bracketData.thirdPlace = [
         {
-            id: '3rd-place',
+            id: 'WC2026-3RD',
             teams: ['SF-1-loser', 'SF-2-loser'],
             score: { home: 0, away: 0 },
             status: 'scheduled'
@@ -345,7 +397,7 @@ function generateBracketData() {
     // Final
     state.bracketData.final = [
         {
-            id: 'final',
+            id: 'WC2026-FINAL',
             teams: [
                 state.bracketData.semiFinals[0].winner || '?',
                 state.bracketData.semiFinals[1].winner || '?'
@@ -354,6 +406,22 @@ function generateBracketData() {
             status: 'scheduled'
         }
     ];
+}
+
+/**
+ * Obtenir le code FIFA d'une équipe à partir de son nom
+ */
+function getTeamCodeFromName(teamName) {
+    // Normaliser le nom
+    const normalizedName = teamName.toLowerCase().trim();
+
+    // Rechercher dans la liste des équipes
+    const foundTeam = TEAMS.find(team =>
+        team.name.toLowerCase().includes(normalizedName) ||
+        team.code.toLowerCase() === normalizedName
+    );
+
+    return foundTeam ? foundTeam.code : teamName.substring(0, 3).toUpperCase();
 }
 
 /**
@@ -606,7 +674,7 @@ function startAutoRefresh() {
     // Rafraîchir toutes les 5 minutes
     setInterval(async () => {
         try {
-            await loadDataFromAPI();
+            await loadDataFromTheSportsDB();
             updateUI();
         } catch (error) {
             console.error('Erreur lors du rafraîchissement:', error);
