@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coupe du Monde 2026 - Phase Finale</title>
+    <title>Coupe du Monde 2026 - Résultats Officiels</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,18 +11,20 @@
 <body>
     <div class="container">
         <header>
-            <h1><i class="fas fa-futbol"></i> Coupe du Monde 2026 - Phase Finale</h1>
-            <p class="subtitle">Suivez en direct les matchs et résultats officiels</p>
+            <h1><i class="fas fa-futbol"></i> Coupe du Monde 2026 - Résultats Officiels</h1>
+            <p class="subtitle">Suivez en direct les matchs et résultats de l'élimination directe</p>
             <div class="date-info">
                 <span id="current-date">Chargement...</span>
                 <span id="last-update">Dernière mise à jour: --:--</span>
-                <span id="data-source">Source: Football-Data.org</span>
+                <span id="api-status">API: Connectée</span>
             </div>
             <div class="loading">
                 <i class="fas fa-spinner fa-spin"></i> Chargement des données...
             </div>
             <div class="error-message" id="error-message" style="display: none;">
-                <i class="fas fa-exclamation-triangle"></i> Impossible de récupérer les données. Affichage des données par défaut.
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Impossible de récupérer les données officielles. Affichage des données par défaut.</p>
+                <p><small>Assurez-vous que l'API est disponible ou vérifiez votre clé API.</small></p>
             </div>
         </header>
 
@@ -37,7 +39,7 @@
                         <button id="next-day"><i class="fas fa-chevron-right"></i></button>
                     </div>
                     <div class="matches-list" id="matches-list">
-                        <!-- Les matchs seront injectés ici par JavaScript -->
+                        <!-- Les matchs seront injectés ici -->
                     </div>
                 </div>
             </section>
@@ -54,7 +56,7 @@
         </main>
 
         <footer>
-            <p>© 2026 Coupe du Monde - Données fournies par <a href="https://www.football-data.org" target="_blank">Football-Data.org</a></p>
+            <p>© 2026 Coupe du Monde - Données fournies par <a href="https://www.api-football.com" target="_blank">API-FOOTBALL.com</a></p>
             <p>Projet open source - <a href="https://github.com" target="_blank">Voir sur GitHub</a></p>
         </footer>
     </div>
